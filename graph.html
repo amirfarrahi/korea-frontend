@@ -1,0 +1,346 @@
+<html>
+  <head>
+ <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+ <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.21.0/vis.min.js"></script>   
+        <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" />
+        <link href='https://fonts.googleapis.com/css?family=Montserrat:400,700' rel='stylesheet' type='text/css' />
+<link rel = "stylesheet" type = "text/css" href = "dashboard.css" />
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+      
+
+
+</head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script type="text/javascript">
+  
+ 
+    
+    function getColor(value){
+     var hue=((1-value)*120).toString(10);
+     return ["hsl(",hue,",100%,50%)"].join("");
+    }
+    var radarname='0010VDE14200';
+    var msgboard='';
+    var data = null;
+    var graph = null;
+    var container= null;
+    var sdata=[];
+    var dcolor='';
+    var accmarkers=[];
+    var acclocations=[];
+        var options = {
+        width: '100%' ,
+        height:'100%' ,
+        
+        cameraPosition: {
+         distance: 2
+        },
+        style: 'dot-color',
+        showPerspective: false,
+        showGrid: true,
+        keepAspectRatio: false,
+        verticalRatio: 1.0,
+        showLegend:false,
+        legendLabel: 'distance',
+        xLabel: 'Flow',
+        yLabel: 'Density',
+        zLabel: 'Time Steps'
+        
+        };
+
+
+      function draw(input){
+        
+        data = new vis.DataSet();
+        for (var i = 0; i < input; i++) {
+        if ( sdata.length>0) data.add(sdata[i].ndata);
+       /* if (sdata[i].msg.length!=0) msgboard += '<div class="alert alert-danger" role="alert">' + sdata[i].msg +'</div>';
+         */ 
+        }
+       // alert(data.length);        
+        container=document.getElementById('chart_div');
+        if (data.length>0) graph = new vis.Graph3d(container, data, options);
+      }
+
+      
+
+      function showaccident(timestep) {
+        msgboard='';
+        if (sdata.length==0) return;
+      // alert(accmarkers[0].get('data').start_time); 
+       sdata[timestep-1].time;
+      for(var i=0;i<accmarkers.length;++i){
+          accmarkers[i].setVisible( ((accmarkers[i].get('data').start_time<=sdata[timestep-1].time) && (accmarkers[i].get('data').end_time>=sdata[timestep-1].time))  );
+        if ((accmarkers[i].get('data').start_time<=sdata[timestep-1].time) && (accmarkers[i].get('data').end_time>=sdata[timestep-1].time))  msgboard += '<div class="alert alert-danger" role="alert">' +'Accident! Location: ' + accmarkers[i].get('data').radar_name + ' ,Time : ' + accmarkers[i].get('data').start_time + ' , Response Time:  ' + accmarkers[i].get('data').response_time+ ' , Turn Around Time: ' + accmarkers[i].get('data').turn_around_time + '</div>';
+       }
+
+      }
+
+
+
+   var mmap;
+   function initMap() {
+         mmap = new google.maps.Map(document.getElementById('map'), {
+          zoom: 8, 
+          center: {lat: 36.41, lng: 128.15}
+        });
+
+        
+      
+      }
+
+        var markers=[]
+
+
+        function get_radar_info(callback) {
+        $("#chart_div").hide();
+        $("#load").fadeIn(); 
+        $.ajax({
+        type: 'GET',
+        url: 'https://afternoon-wildwood-16580.herokuapp.com/radar/' +radarname,
+        dataType: "json",
+        success: function(re){
+             var relist=re[0].data;
+             $.each(relist, function(index) {
+              dcolor='#6698FF';
+              if (relist[index].accident_ind !=0) dcolor='#FF0000';
+              var item={timestep:index,
+                  accind:(relist[index].accident_ind !=0),
+                  time: relist[index].time,
+                  response_time:relist[index].response_time ,
+                  turn_around_time:relist[index].turn_around_time,
+                  speed: 1,
+                  ndata: {
+                x:relist[index].flow,
+                y:relist[index].density,
+                z:index,
+                style: dcolor
+                      }
+               }
+
+
+                sdata.push(item);
+            });
+
+       $("#myRange").attr({
+       "max" : sdata.length,
+       "min" : 1      
+       });
+       $("#myRange").val("1");
+       $("#load").hide();
+       $("#chart_div").fadeIn();
+       callback();
+//      draw(slider.value)
+
+         }
+    });
+
+}
+
+
+
+
+
+
+
+
+	
+
+$( document ).ready(function() { 
+
+var accdata=null;
+
+ get_radar_info (function(){
+           draw($("#myRange").val());
+           });
+
+
+$.ajax({
+        type: 'GET',
+        url: 'https://afternoon-wildwood-16580.herokuapp.com/accidents',
+        dataType: "json",
+        success: function(re){
+               var relist=re[0].data;
+               $.each(relist, function(index) {
+                 accdata={
+                   lat: relist[index].lat,
+                   lng: relist[index].lng,
+                   response_time: relist[index].response_time,
+                   turn_around_time: relist[index].turn_around_time,
+                   start_time: relist[index].start_time,
+                   end_time: relist[index].end_time,
+                   radar_name: relist[index].radar_id
+                 };
+                 var accmarker = new google.maps.Marker({
+                 position: new google.maps.LatLng(relist[index].lat, relist[index].lng),
+                 map: mmap,
+                 data:accdata,
+                 visible:false,
+        //         animation: google.maps.Animation.DROP,
+                 icon: 'accident.png',
+                 title: relist[index].radar_id
+                 });
+                 accmarkers.push(accmarker);
+               });
+        }
+});
+
+
+$('#load').hide(); 
+var slider = document.getElementById("myRange");
+var output = document.getElementById("demo");
+output.innerHTML = slider.value;
+//draw(slider.value);
+slider.oninput = function() {
+  output.innerHTML = this.value;
+  draw($("#myRange").val());
+  var theDiv = document.getElementById("not");
+  showaccident($("#myRange").val());
+  theDiv.innerHTML = msgboard; 
+}
+
+
+$.ajax({
+        type: 'GET',
+        url: 'https://afternoon-wildwood-16580.herokuapp.com/radars',
+        dataType: "json",
+        success: function(re){
+     //       alert(JSON.stringify(re[0].data));
+               var relist=re[0].data;
+ 
+             $.each(relist, function(index) {
+//alert(relist[index].lat);
+            
+            var marker = new google.maps.Marker({
+            position: {lat: relist[index].lat, lng: relist[index].lng},
+            map: mmap,
+            icon:'dot.png'   
+            /* {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 1
+            }*/ ,
+           // animation: google.maps.Animation.DROP,
+            title: relist[index].radarname
+            
+          });
+          marker.setMap(mmap);
+          markers.push(marker);
+          google.maps.event.addListener(marker, 'click', function() {
+                 sdata=[];
+                 radarname=this.getTitle();
+               //   $("#chart_div").hide(); 
+               //   $("#load").fadeIn();
+         get_radar_info (function(){
+           draw($("#myRange").val());
+         } );
+
+
+
+          });
+
+              
+
+
+               
+            });
+
+ 
+    
+ 
+         }
+    });
+
+
+
+
+/**************/
+
+
+
+});
+
+
+    </script>
+  
+  <body>
+<div class="container">
+     <div class="row top5">
+     	<div class="col-md-3"></div>
+	<div class="col-md-6">
+        <div id="slidecontainer">
+  	<input type="range" min="1" max="1" value="100" class="slider" id="myRange">
+  	
+	</div>
+        </div>
+        <div class="col-md-3">
+		<p class="label label-default">Time Step: <span id="demo"></span></p>
+	</div>
+     </div>
+     <div class="row top5">
+     	<div class="col-md-4 rounded-circle" style="background-color:#F8F8F8 " >
+          <div id="chart_div" style="height: 300px;"></div>
+          <div id="load" style="height: 300px; background-image: url('spin.gif'); background-repeat: no-repeat; background-position: center; "></div> 
+        </div>
+        <div class="col-md-4">
+        <div class="row"> 
+        <div class="col-md-2"></div>
+        <div class="col-md-10">      
+    <img src="ukorea.png" class="img-rounded" alt="Cinque Terre" width="200" height="150">
+        </div>
+        </div>
+        <div class="row top5">
+        <div class="col-md-2"></div>
+        <div class="col-md-10">
+    <img src="gwu.png" class="img-circle" alt="Cinque Terre" width="200" height="150">
+        </div>
+        
+        </div>
+        </div>
+        
+     	<div class="col-md-4 rounded-circle" style="background-color:#fafafa;" >
+       
+        <div id="not" style="overflow-y:scroll; height: 300px;">
+
+
+ 
+
+
+
+
+
+
+
+
+
+</div>
+        
+
+
+
+
+
+
+
+
+</div>
+     </div>
+     <div class="row top5"></div>
+     <div class="row">
+	<div id="map" class="col-md-12 frame rounded-circle" ></div>
+     </div>
+
+
+
+
+
+      
+    
+   
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDVHCSIgYfsYUdCjpevjf00e0RsOyAAvDY&callback=initMap">
+    </script>
+	 
+</div>   
+  </body>
+</html>
