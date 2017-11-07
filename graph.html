@@ -28,13 +28,14 @@
     var sdata=[];
     var dcolor='';
     var accmarkers=[];
+    var curradarmarker=null;
     var acclocations=[];
         var options = {
         width: '100%' ,
         height:'100%' ,
         
         cameraPosition: {
-         distance: 2
+         distance: 1.8
         },
         style: 'dot-color',
         showPerspective: false,
@@ -43,9 +44,10 @@
         verticalRatio: 1.0,
         showLegend:false,
         legendLabel: 'distance',
-        xLabel: 'Flow',
-        yLabel: 'Density',
-        zLabel: 'Time Steps'
+        xLabel: '',
+        yLabel: ''/*D */,
+        zLabel: 'T',
+        zMax: 288
         
         };
 
@@ -93,12 +95,16 @@
         var markers=[]
 
 
-        function get_radar_info(callback) {
+        function get_radar_info(qq,callback) {
+        var latlng;
         $("#chart_div").hide();
-        $("#load").fadeIn(); 
+        $("#load").fadeIn();
+      //  curradarmarker.setVisible(false);
+        sdata=[]; 
+        document.getElementById("chart_title").innerHTML = 'Radar ID: '+ qq; 
         $.ajax({
         type: 'GET',
-        url: 'https://afternoon-wildwood-16580.herokuapp.com/radar/' +radarname,
+        url: 'https://afternoon-wildwood-16580.herokuapp.com/radar/' +qq,
         dataType: "json",
         success: function(re){
              var relist=re[0].data;
@@ -110,6 +116,8 @@
                   time: relist[index].time,
                   response_time:relist[index].response_time ,
                   turn_around_time:relist[index].turn_around_time,
+                  radar_lat:relist[index].radar_lat ,
+                  radar_lng:relist[index].radar_lng ,
                   speed: 1,
                   ndata: {
                 x:relist[index].flow,
@@ -119,20 +127,23 @@
                       }
                }
 
-
+                
                 sdata.push(item);
             });
-
+       latlng = new google.maps.LatLng(sdata[0].radar_lat,sdata[0].radar_lng);
+       //alert(sdata[0].radar_lat);
+       curradarmarker.setPosition(latlng);
+       curradarmarker.setVisible(true);
        $("#myRange").attr({
        "max" : sdata.length,
        "min" : 1      
        });
-       $("#myRange").val("1");
+       $("#myRange").val("1").trigger('input');
        $("#load").hide();
        $("#chart_div").fadeIn();
        callback();
 //      draw(slider.value)
-
+       
          }
     });
 
@@ -151,9 +162,18 @@ $( document ).ready(function() {
 
 var accdata=null;
 
- get_radar_info (function(){
+ get_radar_info ('0010VDE14200',function(){
            draw($("#myRange").val());
            });
+
+                 curradarmarker=new google.maps.Marker({
+                 position: new google.maps.LatLng(37.24357268,127.2455066),
+                 map: mmap,
+                 visible:false,
+                 animation: google.maps.Animation.BOUNCE,
+                 icon: 'pole.png',
+                 title: radarname
+                 });
 
 
 $.ajax({
@@ -170,7 +190,9 @@ $.ajax({
                    turn_around_time: relist[index].turn_around_time,
                    start_time: relist[index].start_time,
                    end_time: relist[index].end_time,
-                   radar_name: relist[index].radar_id
+                   radar_name: relist[index].radar_id,
+                   radar_lat : relist[index].radar_lat,
+                   radar_lng: relist[index].radar_lng
                  };
                  var accmarker = new google.maps.Marker({
                  position: new google.maps.LatLng(relist[index].lat, relist[index].lng),
@@ -180,6 +202,13 @@ $.ajax({
         //         animation: google.maps.Animation.DROP,
                  icon: 'accident.png',
                  title: relist[index].radar_id
+                 });
+                 google.maps.event.addListener(accmarker, 'click', function() {
+                   radarname=accmarker.getTitle();
+                  
+                    get_radar_info (accmarker.getTitle(),function(){
+           		draw($("#myRange").val());
+                    }); 
                  });
                  accmarkers.push(accmarker);
                });
@@ -231,7 +260,8 @@ $.ajax({
                  radarname=this.getTitle();
                //   $("#chart_div").hide(); 
                //   $("#load").fadeIn();
-         get_radar_info (function(){
+           get_radar_info (this.getTitle(),function(){
+           showaccident($("#myRange").val());
            draw($("#myRange").val());
          } );
 
@@ -279,6 +309,7 @@ $.ajax({
      </div>
      <div class="row top5">
      	<div class="col-md-4 rounded-circle" style="background-color:#F8F8F8 " >
+           <h6 id="chart_title" class="text-center"></h6>
           <div id="chart_div" style="height: 300px;"></div>
           <div id="load" style="height: 300px; background-image: url('spin.gif'); background-repeat: no-repeat; background-position: center; "></div> 
         </div>
@@ -299,7 +330,7 @@ $.ajax({
         </div>
         
      	<div class="col-md-4 rounded-circle" style="background-color:#fafafa;" >
-       
+        <h6  class="text-center">Notifications</h6>
         <div id="not" style="overflow-y:scroll; height: 300px;">
 
 
