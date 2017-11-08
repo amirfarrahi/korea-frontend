@@ -74,7 +74,7 @@
        sdata[timestep-1].time;
       for(var i=0;i<accmarkers.length;++i){
           accmarkers[i].setVisible( ((accmarkers[i].get('data').start_time<=sdata[timestep-1].time) && (accmarkers[i].get('data').end_time>=sdata[timestep-1].time))  );
-        if ((accmarkers[i].get('data').start_time<=sdata[timestep-1].time) && (accmarkers[i].get('data').end_time>=sdata[timestep-1].time))  msgboard += '<div class="alert alert-danger" role="alert">' +'Accident! Location: ' + accmarkers[i].get('data').radar_name + ' ,Time : ' + accmarkers[i].get('data').start_time + ' , Response Time:  ' + accmarkers[i].get('data').response_time+ ' , Turn Around Time: ' + accmarkers[i].get('data').turn_around_time + '</div>';
+        if ((accmarkers[i].get('data').start_time<=sdata[timestep-1].time) && (accmarkers[i].get('data').end_time>=sdata[timestep-1].time))  msgboard += '<div style="cursor: pointer;" id="' + accmarkers[i].get('data').radar_name + '" class="alert alert-danger" role="alert">' +'Accident! Location: ' + accmarkers[i].get('data').radar_name + ' ,Time: ' + accmarkers[i].get('data').start_time + ' , Response Time:  ' + accmarkers[i].get('data').response_time+ ' , Turn Around Time: ' + accmarkers[i].get('data').turn_around_time + '</div>';
        }
 
       }
@@ -97,9 +97,9 @@
 
         function get_radar_info(qq,callback) {
         var latlng;
+        var timeindex=$("#myRange").val();
         $("#chart_div").hide();
         $("#load").fadeIn();
-      //  curradarmarker.setVisible(false);
         sdata=[]; 
         document.getElementById("chart_title").innerHTML = 'Radar ID: '+ qq; 
         $.ajax({
@@ -134,15 +134,16 @@
        //alert(sdata[0].radar_lat);
        curradarmarker.setPosition(latlng);
        curradarmarker.setVisible(true);
+       curradarmarker.setTitle(qq);
        $("#myRange").attr({
        "max" : sdata.length,
        "min" : 1      
        });
-       $("#myRange").val("1").trigger('input');
        $("#load").hide();
        $("#chart_div").fadeIn();
+       if (sdata.length==288) $("#myRange").val(timeindex).trigger('input');  else 
+       $("#myRange").val("1").trigger('input');
        callback();
-//      draw(slider.value)
        
          }
     });
@@ -155,7 +156,13 @@
 
 
 
-
+$(document).on('click', '.alert', function () {
+    
+ // your function here
+ get_radar_info (this.id,function(){
+          // draw($("#myRange").val());
+           });
+});
 	
 
 $( document ).ready(function() { 
@@ -163,7 +170,7 @@ $( document ).ready(function() {
 var accdata=null;
 
  get_radar_info ('0010VDE14200',function(){
-           draw($("#myRange").val());
+          // draw($("#myRange").val());
            });
 
                  curradarmarker=new google.maps.Marker({
@@ -207,7 +214,7 @@ $.ajax({
                    radarname=accmarker.getTitle();
                   
                     get_radar_info (accmarker.getTitle(),function(){
-           		draw($("#myRange").val());
+           	//	draw($("#myRange").val());
                     }); 
                  });
                  accmarkers.push(accmarker);
@@ -220,9 +227,9 @@ $('#load').hide();
 var slider = document.getElementById("myRange");
 var output = document.getElementById("demo");
 output.innerHTML = slider.value;
-//draw(slider.value);
 slider.oninput = function() {
   output.innerHTML = this.value;
+ // alert('hh');
   draw($("#myRange").val());
   var theDiv = document.getElementById("not");
   showaccident($("#myRange").val());
@@ -258,11 +265,9 @@ $.ajax({
           google.maps.event.addListener(marker, 'click', function() {
                  sdata=[];
                  radarname=this.getTitle();
-               //   $("#chart_div").hide(); 
-               //   $("#load").fadeIn();
            get_radar_info (this.getTitle(),function(){
            showaccident($("#myRange").val());
-           draw($("#myRange").val());
+           //draw($("#myRange").val());
          } );
 
 
